@@ -1,6 +1,9 @@
 const { ApolloServer, gql } = require("apollo-server");
+const {GraphQLScalarType} = require("graphql")
+const { Kind } = require("graphql/language")
 
 const typeDefs = gql`
+scalar Date
 
     enum Status {
         WATCHED
@@ -18,10 +21,10 @@ const typeDefs = gql`
     type Movie {
     id: ID!
     title: String!
-    releaseDate: String
+    releaseDate: Date
     rating: Int
     status: Status
-    actor: [Actor]
+    actors: [Actor]
     }
 
     type Query {
@@ -29,23 +32,41 @@ const typeDefs = gql`
         movie(id: ID): Movie
     }
 `
+const actors = [
+    {
+        id: "sheng",
+        name: "Sheng Chiang"
+    },
+    {
+        id: "gordon",
+        name: "Gordon Liu"
+    },
+    {
+        id: "jackie",
+        name: "Jackie Chan"
+    },
+    {
+        id: "bruce",
+        name: "Bruce Lee"
+    }
+]
 
 const movies = [
     {
         id: "289340njfksd92",
         title: "5 Deadly Venoms",
-        releaserDate: "8-12-1978",
+        releaseDate: new Date("8-12-1978"),
         rating: 5,
-        actor: [{
-            id: "hehrhjbeuie",
-            name: "Sheng Chiang"
-        }]
+        actors: [{
+            id: "sheng"
+        }, {id: "jackie"}]
     },
     {
         id: '90342nfds9302fdm',
         title: "The 36th Chamber of Shaolin",
-        releaserDate: "2-2-1978",
-        rating: 5
+        releaseDate: new Date("02-02-1978"),
+        rating: 5,
+        actors: [{id: "gordon"}]
     }
 ];
 
@@ -60,7 +81,39 @@ const resolvers = {
             })
             return foundMovie
         }
-    }
+    },
+    Movie:  { 
+      actors: (obj) => {
+          // good time to call DB to filter
+        const actorIds = obj.actors.map(actor => actor.id)
+        const filteredActors = actors.filter(actor => {
+            return actorIds.includes(actor.id)
+        })
+        return filteredActors;
+      }
+      
+   
+    },
+
+    Date: new GraphQLScalarType({
+        name: "Date",
+        description: "the date the film was released",
+        parseValue(value) {
+            // value from the client
+            return new Date(value);
+        },
+        serialize(value) {
+            //value to client
+           return value.getTime(); 
+        },
+        parseLiteral(ast) {
+            console.log(ast)
+            if(ast.kind === Kind.INT) {
+                return new Date(ast.value)
+            }
+            return null
+        }
+    })
 };
 
 const server = new ApolloServer({typeDefs, resolvers, introspection: true, playground: true});
