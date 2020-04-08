@@ -1,7 +1,28 @@
 const { ApolloServer, gql } = require("apollo-server");
 const {GraphQLScalarType} = require("graphql")
 const { Kind } = require("graphql/language")
+const mongoose = require('mongoose');
 
+require('dotenv').config()
+
+
+mongoose.connect(`mongodb+srv://${process.env.DB_MONGO_USER}:${process.env.DB_MONGO_PASS}@cluster0-yjvum.mongodb.net/test?retryWrites=true&w=majority`, {useNewUrlParser: true});
+var db = mongoose.connection;
+
+// Mongoose Schemas////////////////
+
+var movieSchema = new mongoose.Schema({
+    title: String,
+    releaseDate: Date,
+    rating: Number,
+    status: String,
+    actors: [String]
+  });
+
+  var Movie = mongoose.model('Movie', movieSchema);
+
+
+//  Apollo GQL  type definitions and setup ///////////////
 const typeDefs = gql`
 scalar Date
 
@@ -49,6 +70,8 @@ scalar Date
         addMovie(movie: MovieInput):  [Movie]
     }
 `
+
+// Static Data
 const actors = [
     {
         id: "sheng",
@@ -86,6 +109,8 @@ const movies = [
         actors: [{id: "gordon"}]
     }
 ];
+
+//  resolver functions
 
 const resolvers = {
     Query: {
@@ -145,10 +170,21 @@ const resolvers = {
     })
 };
 
+
+// connecting to the server 
+
 const server = new ApolloServer({typeDefs, resolvers, introspection: true, playground: true});
 
-server.listen({
-    port: process.env.PORT || 4000
-}).then(({ url }) => {
-console.log(`Server started at ${url}`)
+db.on('error', console.error.bind(console, 'connection error:'));
+db.once('open', function() {
+  // we're connected!
+  console.log('Connected to the DB 🤙' );
+  
+  
+  
+  server.listen({
+      port: process.env.PORT || 4000
+    }).then(({ url }) => {
+        console.log(`Server started at ${url}`)
+    });
 }); 
