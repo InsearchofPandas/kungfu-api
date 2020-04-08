@@ -31,6 +31,23 @@ scalar Date
         movies: [Movie]
         movie(id: ID): Movie
     }
+
+    input ActorInput {
+        id: ID
+    }
+
+    input MovieInput {
+        id: ID
+    title: String
+    releaseDate: Date
+    rating: Int
+    status: Status
+    actors: [ActorInput]
+    }
+
+    type Mutation {
+        addMovie(movie: MovieInput):  [Movie]
+    }
 `
 const actors = [
     {
@@ -93,6 +110,18 @@ const resolvers = {
       }
       
    
+    },
+
+    Mutation: {
+        addMovie: ( obj, {movie}) => {
+             
+            const newMoviesList = [
+                ...movies, 
+                movie
+            ]
+            return newMoviesList;
+        }
+
     },
 
     Date: new GraphQLScalarType({
