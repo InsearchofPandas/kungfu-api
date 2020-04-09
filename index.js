@@ -114,15 +114,29 @@ const movies = [
 
 const resolvers = {
     Query: {
-        movies: () => {
-            return movies;
+        movies: async  () => {
+            try {
+                const allMovies = await Movie.find()
+                return allMovies;
+            } catch (error) {
+                console.log(error);
+                return [];
+                
+            }
+            
+            
         },
         movie: (obj, {id} , context, info) => {
-            const foundMovie = movies.find((movie) => {
-               return  movie.id === id
-            })
-            return foundMovie
+            try {
+                const foundMovie = Movie.findById(id)
+                 return foundMovie
+             }               
+             catch (error) {
+                console.log(error)
+                return {}
+            }
         }
+          
     },
     Movie:  { 
       actors: (obj) => {
@@ -138,36 +152,22 @@ const resolvers = {
     },
 
     Mutation: {
-        addMovie: ( obj, {movie}) => {
+         addMovie: async ( obj, {movie}) => {
              
-            const newMoviesList = [
-                ...movies, 
-                movie
-            ]
-            return newMoviesList;
+          try { const newMovie =  await Movie.create({
+               ...movie
+           }) 
+           const allMovies = await Movie.find();
+            return allMovies;
+        } catch(e) {
+            []
+            console.log(e)
+        }
         }
 
     },
 
-    Date: new GraphQLScalarType({
-        name: "Date",
-        description: "the date the film was released",
-        parseValue(value) {
-            // value from the client
-            return new Date(value);
-        },
-        serialize(value) {
-            //value to client
-           return value.getTime(); 
-        },
-        parseLiteral(ast) {
-            console.log(ast)
-            if(ast.kind === Kind.INT) {
-                return new Date(ast.value)
-            }
-            return null
-        }
-    })
+   
 };
 
 
