@@ -25,18 +25,56 @@ var movieSchema = new mongoose.Schema({
 //  Apollo GQL  type definitions and setup ///////////////
 const typeDefs = gql`
 scalar Date
+    enum  role {
+        DIRECTOR
+        PRODUCER 
+        WRITER
+        ACTOR
+        STUNT_ARTIST
+        N/A
+    }
 
-    enum Status {
-        WATCHED
-        INTERESTED
-        NOT_INTERESTED
-        UNKNOWN
+    enum  secondaryRole {
+        DIRECTOR
+        PRODUCER 
+        WRITER
+        ACTOR
+        STUNT_ARTIST
+        N/A
+    }
+
+    enum  tertiaryRole {
+        DIRECTOR
+        PRODUCER 
+        WRITER
+        ACTOR
+        STUNT_ARTIST
+        N/A
     }
 
 
     type Actor {
         id: ID!
         name: String!
+        role: role 
+        secondaryRole: secondaryRole
+        tertiaryRole: tertiaryRole
+        dateBorn: String
+        locationBorn: String
+        nationality: String 
+        movies: [Movie]
+    }
+
+    type Director {
+        id: ID!
+        name: String!
+        role: role 
+        secondaryRole: secondaryRole
+        tertiaryRole: tertiaryRole
+        dateBorn: String
+        locationBorn: String
+        nationality: String 
+        movies: [Movie]
     }
 
     type Movie {
@@ -46,20 +84,33 @@ scalar Date
     rating: Int
     status: Status
     actors: [Actor]
+    director: Director
     }
 
     type Query {
         movies: [Movie]
         movie(id: ID): Movie
+        actors: [Actor]
+        actor(id: ID): Actor
+        directors: [Director]
+        director(id: ID): Director
     }
 
     input ActorInput {
         id: ID
+        name: String!
+        role: role 
+        secondaryRole: secondaryRole
+        tertiaryRole: tertiaryRole
+        dateBorn: String
+        locationBorn: String
+        nationality: String 
+        movies: [MovieInput]
     }
 
     input MovieInput {
         id: ID
-    title: String
+    title: String!
     releaseDate: Date
     rating: Int
     status: Status
@@ -68,6 +119,7 @@ scalar Date
 
     type Mutation {
         addMovie(movie: MovieInput):  [Movie]
+        addActor(actor: ActorInput): [Actor]
     }
 `
 
@@ -134,6 +186,15 @@ const resolvers = {
              catch (error) {
                 console.log(error)
                 return {}
+            }
+        },
+        actors: async () => {
+            try {
+                const allActors = await Actor.find()
+                return allActors
+            } catch (error) {
+                console.log(error)
+                return []
             }
         }
           
