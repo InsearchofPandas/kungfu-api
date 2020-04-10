@@ -6,20 +6,48 @@ const mongoose = require('mongoose');
 require('dotenv').config()
 
 
-mongoose.connect(`mongodb+srv://${process.env.DB_MONGO_USER}:${process.env.DB_MONGO_PASS}@cluster0-yjvum.mongodb.net/test?retryWrites=true&w=majority`, {useNewUrlParser: true});
+mongoose.connect(`mongodb+srv://${process.env.DB_MONGO_USER}:${process.env.DB_MONGO_PASS}@cluster0-yjvum.mongodb.net/test?retryWrites=true&w=majority`, {useNewUrlParser: true, useUnifiedTopology: true });
 var db = mongoose.connection;
 
 // Mongoose Schemas////////////////
 
-var movieSchema = new mongoose.Schema({
+const movieSchema = new mongoose.Schema({
     title: String,
     releaseDate: Date,
-    rating: Number,
-    status: String,
-    actors: [String]
+    rank: Number,
+    actors: [String],
+    director: [String]
   });
 
-  var Movie = mongoose.model('Movie', movieSchema);
+  const Movie = mongoose.model('Movie', movieSchema);
+
+  const actorSchema = new mongoose.Schema({
+    name: String,
+    role: String, 
+    secondaryRole: String,
+    tertiaryRole: String,
+    movies: [String],
+    dateBorn: Date,
+    locationBorn: String,
+    nationality: String 
+});
+
+const Actor = mongoose.model('Actor', actorSchema);
+ 
+
+const directorSchema = new mongoose.Schema({
+    name: String,
+    role: String, 
+    secondaryRole: String,
+    tertiaryRole: String,
+    movies: [String],
+    dateBorn: Date,
+    locationBorn: String,
+    nationality: String 
+});
+
+const Director = mongoose.model('Director', directorSchema);
+ 
 
 
 //  Apollo GQL  type definitions and setup ///////////////
@@ -31,7 +59,8 @@ scalar Date
         WRITER
         ACTOR
         STUNT_ARTIST
-        N/A
+        MARTIAL_ARTIST
+        NA
     }
 
     enum  secondaryRole {
@@ -40,7 +69,8 @@ scalar Date
         WRITER
         ACTOR
         STUNT_ARTIST
-        N/A
+        MARTIAL_ARTIST
+        NA
     }
 
     enum  tertiaryRole {
@@ -49,7 +79,8 @@ scalar Date
         WRITER
         ACTOR
         STUNT_ARTIST
-        N/A
+        MARTIAL_ARTIST
+        NA
     }
 
 
@@ -59,10 +90,11 @@ scalar Date
         role: role 
         secondaryRole: secondaryRole
         tertiaryRole: tertiaryRole
-        dateBorn: String
+        movies: [Movie]
+        dateBorn: Date
         locationBorn: String
         nationality: String 
-        movies: [Movie]
+
     }
 
     type Director {
@@ -71,20 +103,20 @@ scalar Date
         role: role 
         secondaryRole: secondaryRole
         tertiaryRole: tertiaryRole
-        dateBorn: String
-        locationBorn: String
-        nationality: String 
         movies: [Movie]
+        dateBorn: Date
+        locationBorn: String
+        nationality: String   
     }
+
 
     type Movie {
     id: ID!
     title: String!
     releaseDate: Date
-    rating: Int
-    status: Status
+    rank: Int
+    director: [Director]
     actors: [Actor]
-    director: Director
     }
 
     type Query {
@@ -96,71 +128,87 @@ scalar Date
         director(id: ID): Director
     }
 
+   
+
+    input DirectorInput {
+        id: ID
+        name: String!
+        role: role 
+        secondaryRole: secondaryRole
+        tertiaryRole: tertiaryRole
+        dateBorn: Date
+        locationBorn: String
+        nationality: String 
+        movies: [ID]
+    }
+
+    input DirectorUpdate {
+        id: ID!
+        name: String
+        role: role 
+        secondaryRole: secondaryRole
+        tertiaryRole: tertiaryRole
+        dateBorn: Date
+        locationBorn: String
+        nationality: String 
+        movies: [ID]
+    }
+    
+
     input ActorInput {
         id: ID
         name: String!
         role: role 
         secondaryRole: secondaryRole
         tertiaryRole: tertiaryRole
-        dateBorn: String
+        dateBorn: Date
         locationBorn: String
         nationality: String 
-        movies: [MovieInput]
+        movies: [ID]
+    }
+
+    input ActorUpdate {
+        id: ID!
+        name: String
+        role: role 
+        secondaryRole: secondaryRole
+        tertiaryRole: tertiaryRole
+        dateBorn: Date
+        locationBorn: String
+        nationality: String 
+        movies: [ID]
+    }
+
+    input MovieUpdate {
+        id: ID!
+        title: String
+        releaseDate: Date
+        rank: Int
+        actors: [ID]
+        director: [ID] 
     }
 
     input MovieInput {
         id: ID
-    title: String!
-    releaseDate: Date
-    rating: Int
-    status: Status
-    actors: [ActorInput]
+        title: String!
+        releaseDate: Date
+        rank: Int
+        actors: [ID]
+        director: [ID] 
     }
 
     type Mutation {
         addMovie(movie: MovieInput):  [Movie]
+        updateMovie(movie: MovieUpdate): [Movie]
         addActor(actor: ActorInput): [Actor]
+        updateActor(actor: ActorUpdate): [Actor]
+        addDirector(director: DirectorInput): [Director]
+        updateDirector(director: DirectorUpdate): [Director]
     }
 `
 
-// Static Data
-const actors = [
-    {
-        id: "sheng",
-        name: "Sheng Chiang"
-    },
-    {
-        id: "gordon",
-        name: "Gordon Liu"
-    },
-    {
-        id: "jackie",
-        name: "Jackie Chan"
-    },
-    {
-        id: "bruce",
-        name: "Bruce Lee"
-    }
-]
 
-const movies = [
-    {
-        id: "289340njfksd92",
-        title: "5 Deadly Venoms",
-        releaseDate: new Date("8-12-1978"),
-        rating: 5,
-        actors: [{
-            id: "sheng"
-        }, {id: "jackie"}]
-    },
-    {
-        id: '90342nfds9302fdm',
-        title: "The 36th Chamber of Shaolin",
-        releaseDate: new Date("02-02-1978"),
-        rating: 5,
-        actors: [{id: "gordon"}]
-    }
-];
+
 
 //  resolver functions
 
@@ -178,7 +226,7 @@ const resolvers = {
             
             
         },
-        movie: (obj, {id} , context, info) => {
+        movie: async (obj, {id} , context, info) => {
             try {
                 const foundMovie = Movie.findById(id)
                  return foundMovie
@@ -188,7 +236,7 @@ const resolvers = {
                 return {}
             }
         },
-        actors: async () => {
+        actors:  async () => {
             try {
                 const allActors = await Actor.find()
                 return allActors
@@ -196,20 +244,71 @@ const resolvers = {
                 console.log(error)
                 return []
             }
-        }
+        },
+        actor: async (obj, {id} , context, info) => {
+            try {
+                const foundActor = Actor.findById(id)
+                 return foundActor
+             }               
+             catch (error) {
+                console.log(error)
+                return {}
+            }
+        },
+        directors: async () => {
+            try {
+                const allDirectors = await Director.find()
+                return allDirectors
+            } catch (error) {
+                console.log(error)
+                return []
+            }
+        },
+        director: async (obj, {id} , context, info) => {
+            try {
+                const foundDirector = Director.findById(id)
+                 return foundDirector
+             }               
+             catch (error) {
+                console.log(error)
+                return {}
+            }
+        },
           
     },
     Movie:  { 
       actors: (obj) => {
-          // good time to call DB to filter
-        const actorIds = obj.actors.map(actor => actor.id)
-        const filteredActors = actors.filter(actor => {
-            return actorIds.includes(actor.id)
+        //   console.log(obj)
+        const filteredActors  = obj.actors.map(id => {
+            return Actor.findById(id)
         })
+        // console.log(filteredActors);
         return filteredActors;
+      },
+      director: (obj) => {
+        //   console.log(obj)
+        const filteredDirector  = obj.director.map(id => {
+            return Director.findById(id)
+        })
+        // console.log(filteredActors);
+        return filteredDirector;
       }
-      
-   
+    },
+    Actor: {
+        movies: (obj) => {
+            const filteredMovies = obj.movies.map(id => {
+                return Movie.findById(id)
+            })
+            return filteredMovies
+        } 
+    },
+    Director: {
+        movies: (obj) => {
+            const filteredMovies = obj.movies.map(id => {
+                return Movie.findById(id)
+            })
+            return filteredMovies
+        } 
     },
 
     Mutation: {
@@ -224,7 +323,71 @@ const resolvers = {
             []
             console.log(e)
         }
-        }
+        },
+        updateMovie: async ( obj, {movie}) => {
+            try { 
+                const newMovie =  await Movie.updateOne(
+                    { _id: movie.id},
+                    {$set: {...movie}}
+                    );
+
+             const allMovies = await Movie.find();
+              return allMovies;
+          } catch(e) {
+              []
+              console.log(e)
+          }
+          },
+        addActor: async ( obj, {actor}) => {
+            try { const newActor =  await Actor.create({
+                 ...actor
+             }) 
+             const allActors = await Actor.find();
+              return allActors;
+          } catch(e) {
+              []
+              console.log(e)
+          }
+          },
+          updateActor: async ( obj, {actor}) => {
+            try { 
+                const newActor =  await Actor.updateOne(
+                    { _id: actor.id},
+                    {$set: {...actor}}
+                    );
+
+             const allActors = await Actor.find();
+              return allActors;
+          } catch(e) {
+              []
+              console.log(e)
+          }
+          },
+          addDirector: async ( obj, {director}) => {
+            try { const newDirector =  await Director.create({
+                 ...director
+             }) 
+             const allDirectors = await Director.find();
+              return allDirectors;
+          } catch(e) {
+              []
+              console.log(e)
+          }
+          },
+          updateDirector: async ( obj, {director}) => {
+            try { 
+                const newDirector =  await Director.updateOne(
+                    { _id: director.id},
+                    {$set: {...director}}
+                    );
+
+             const allDirectors = await Director.find();
+              return allDirectors;
+          } catch(e) {
+              []
+              console.log(e)
+          }
+          },
 
     },
 
